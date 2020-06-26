@@ -25,6 +25,7 @@ import LLVM.AST.Linkage
 
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Module
+import Debug.Trace
 
 -- | See <https://llvm.org/docs/LangRef.html#fadd-instruction reference>.
 fadd :: MonadIRBuilder m => Operand -> Operand -> m Operand
@@ -123,6 +124,7 @@ gep addr is = do
   where
     -- TODO: Perhaps use the function from llvm-hs-pretty (https://github.com/llvm-hs/llvm-hs-pretty/blob/master/src/LLVM/Typed.hs)
     gepType :: MonadModuleBuilder m => Type -> [Operand] -> m Type
+    gepType ty is | trace ("Evaluating gepType " ++ show ty ++ " " ++ show is) False = undefined
     gepType ty [] = pure (ptr ty)
     gepType (PointerType ty _) (_:is') = gepType ty is'
     gepType (StructureType _ elTys) (ConstantOperand (C.Int 32 val):is') =
@@ -134,7 +136,9 @@ gep addr is = do
       mayTy <- liftModuleState (gets (Map.lookup nm . builderTypeDefs))
       case mayTy of
         Nothing -> error $ "gep: Couldn’t resolve typedef for: " ++ show nm
-        Just ty -> gepType ty is'
+        Just ty -> do
+          x <- gepType ty is'
+          trace ("gepType " ++ show nm ++ " " ++ show is ++ " ==> " ++ show x) $ return x
     gepType t (_:_) = error $ "gep: Can't index into a " ++ show t
 
 -- | Emit the @trunc ... to@ instruction.
